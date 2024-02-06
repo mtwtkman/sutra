@@ -1,0 +1,23 @@
+cabal-version:   3.0
+name:            sutra-extensible-effects
+version:         0.1.0.0
+author:          mtwtkman
+maintainer:      924277+mtwtkman@users.noreply.github.com
+build-type:      Simple
+
+common warnings
+    ghc-options: -Wall
+
+executable app
+  hs-source-dirs: app
+  default-language: Haskell2010
+  main-is: Main.hs
+  build-depends: base
+
+library core
+  hs-source-dirs: core
+  default-language: Haskell2010
+  build-depends: base
+  exposed-modules:
+    Data.FTCQueue
+    Data.OpenUnion

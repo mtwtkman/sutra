@@ -1,0 +1,7 @@
+cradle:
+  cabal:
+    components:
+      - path: app
+        component: "exe:app"
+      - path: core
+        component: "lib:core"
