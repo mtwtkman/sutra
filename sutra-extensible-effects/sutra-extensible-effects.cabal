@@ -19,5 +19,8 @@ library core
   default-language: Haskell2010
   build-depends: base
   exposed-modules:
+    Control.Eff
     Data.FTCQueue
     Data.OpenUnion
+  other-modules:
+    Control.Eff.Internal

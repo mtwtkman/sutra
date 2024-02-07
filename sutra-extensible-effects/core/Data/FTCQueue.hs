@@ -6,7 +6,7 @@ module Data.FTCQueue (
   tsingleton,
   (|>),
   (><),
-  ViewL,
+  ViewL(..),
   viewlMap,
   tviewl,
 ) where
