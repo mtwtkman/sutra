@@ -134,7 +134,7 @@ pattern U0 h <- (decomp -> Right h)
   where
     U0 h = inj h
 
--- | U1 : everithing excluding the first element of the union.
+-- | U1 : everything excluding the first element of the union.
 pattern U1 t <- (decomp -> Left t)
   where
     U1 t = weaken t
