@@ -29,6 +29,8 @@ module Control.Eff.Internal where
 
 import qualified Control.Arrow as A
 import qualified Control.Category as C
+import qualified Control.Exception as Exc
+import Control.Monad.Fix (fix)
 import Control.Monad.Trans.Control (MonadBaseControl (..))
 import Data.FTCQueue (FTCQueue (..), ViewL (..), tsingleton, tviewl, viewlMap, (><), (|>))
 import Data.OpenUnion (
@@ -448,3 +450,32 @@ a part of the effect-list.
 -}
 lift :: (Lifted m r) => m a -> Eff r a
 lift = send . Lift
+
+-- | Handle lifted requests by running them sequentially
+instance (Monad m) => Handle (Lift m) r a (m k) where
+  handle h q (Lift x) = x >>= (h . (q ^$))
+
+{- | The handler of Lift requests. It is meant to be terminal: we only
+allow a single Lifted Monad. Note, too, how this is different from
+other handlers.
+-}
+runLift :: (Monad m) => Eff '[Lift m] w -> m w
+runLift = fix (handleTerminal return)
+
+{- | Catching of dynamic exceptions
+See the problem in
+http://okmij.org/ftp/Haskell/misc.html#catch-MonadIO
+-}
+catchDynE ::
+  forall e a r.
+  (Lifted IO r, Exc.Exception e) =>
+  Eff r a ->
+  (e -> Eff r a) ->
+  Eff r a
+catchDynE m eh = fix (respondRelay' hdl return) m
+ where
+  -- Polymorphic local binding: signature is needed
+  hdl :: (Eff r a -> Eff r a) -> Arrs r v a -> Lift IO v -> Eff r a
+  hdl h q (Lift em) = lift (Exc.try em) >>= either eh k
+   where
+    k = h . (q ^$)
