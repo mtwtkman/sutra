@@ -12,6 +12,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 {- | A monadic library for communication between a handler and
 its client, the administered computation
@@ -30,6 +31,7 @@ module Control.Eff.Internal where
 import qualified Control.Arrow as A
 import qualified Control.Category as C
 import qualified Control.Exception as Exc
+import Control.Monad.Base (MonadBase (..))
 import Control.Monad.Fix (fix)
 import Control.Monad.Trans.Control (MonadBaseControl (..))
 import Data.FTCQueue (FTCQueue (..), ViewL (..), tsingleton, tviewl, viewlMap, (><), (|>))
@@ -42,6 +44,7 @@ import Data.OpenUnion (
   pattern U1,
  )
 import GHC.Exts (inline)
+import Control.Monad.IO.Class (MonadIO (..))
 
 {- | Effectful arrow type: a function from a to b that also does effects
 denoted by r
@@ -479,3 +482,34 @@ catchDynE m eh = fix (respondRelay' hdl return) m
   hdl h q (Lift em) = lift (Exc.try em) >>= either eh k
    where
     k = h . (q ^$)
+
+-- | You need this when using 'catchesDynE`
+data HandlerDynE r a
+  = forall e. (Exc.Exception e, Lifted IO r) => HandlerDynE (e -> Eff r a)
+
+{- | Catch multiple dynamic exceptions. The implementation follows
+that in COntrol.Exception almost exactly. Not yet tested.
+-- Could this be useful for control with cut?
+-}
+catchesDynE :: (Lifted IO r) => Eff r a -> [HandlerDynE r a] -> Eff r a
+catchesDynE m hs = m `catchDynE` catchesHandler hs
+ where
+  catchesHandler :: (Lifted IO r) => [HandlerDynE r a] -> Exc.SomeException -> Eff r a
+  catchesHandler handlers e = foldr tryHandler (lift . Exc.throw $ e) handlers
+   where
+    tryHandler (HandlerDynE h) res = maybe res h (Exc.fromException e)
+
+instance (MonadBase b m, Lifted m r) => MonadBase b (Eff r) where
+  liftBase = lift . liftBase
+  {-# INLINE liftBase #-}
+
+instance (MonadBase m m) => MonadBaseControl m (Eff '[Lift m]) where
+  type StM (Eff '[Lift m]) a = a
+  liftBaseWith f = lift (f runLift)
+  {-# INLINE liftBaseWith #-}
+  restoreM = return
+  {-# INLINE restoreM #-}
+
+instance (MonadIO m, Lifted m r) => MonadIO (Eff r) where
+  liftIO = lift . liftIO
+  {-# INLINE liftIO #-}
